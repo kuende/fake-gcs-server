@@ -49,7 +49,7 @@ func NewServerWithHostPort(objects []Object, host string, port uint16) (*Server,
 	}
 	s.ts.Listener.Close()
 	s.ts.Listener = l
-	s.ts.StartTLS()
+	s.ts.Start()
 	s.setTransportToAddr(addr)
 	return s, nil
 }
@@ -79,12 +79,15 @@ func (s *Server) buildMuxer() {
 	s.mux.Host("storage.googleapis.com").Path("/{bucketName}/{objectName:.+}").Methods("GET").HandlerFunc(s.downloadObject)
 	r := s.mux.PathPrefix("/storage/v1").Subrouter()
 	r.Path("/b").Methods("GET").HandlerFunc(s.listBuckets)
+	r.Path("/b").Methods("POST").HandlerFunc(s.createBucket)
 	r.Path("/b/{bucketName}").Methods("GET").HandlerFunc(s.getBucket)
+	r.Path("/b/{bucketName}").Methods("DELETE").HandlerFunc(s.deleteBucket)
 	r.Path("/b/{bucketName}/o").Methods("GET").HandlerFunc(s.listObjects)
 	r.Path("/b/{bucketName}/o").Methods("POST").HandlerFunc(s.insertObject)
 	r.Path("/b/{bucketName}/o/{objectName:.+}").Methods("GET").HandlerFunc(s.getObject)
 	r.Path("/b/{bucketName}/o/{objectName:.+}").Methods("DELETE").HandlerFunc(s.deleteObject)
 	r.Path("/b/{sourceBucket}/o/{sourceObject:.+}/rewriteTo/b/{destinationBucket}/o/{destinationObject:.+}").HandlerFunc(s.rewriteObject)
+	s.mux.Path("/{bucketName}/{objectName:.+}").Methods("GET").HandlerFunc(s.downloadObject)
 	s.mux.Path("/upload/storage/v1/b/{bucketName}/o").Methods("POST").HandlerFunc(s.insertObject)
 	s.mux.Path("/upload/resumable/{uploadId}").Methods("PUT", "POST").HandlerFunc(s.uploadFileContent)
 }

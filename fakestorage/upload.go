@@ -32,7 +32,7 @@ func (s *Server) insertObject(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 	if _, ok := s.buckets[bucketName]; !ok {
 		w.WriteHeader(http.StatusNotFound)
-		err := newErrorResponse(http.StatusNotFound, "Not found", nil)
+		err := newErrorResponse(http.StatusNotFound, fmt.Sprintf("Not found %s", bucketName), nil)
 		json.NewEncoder(w).Encode(err)
 		return
 	}
@@ -117,6 +117,7 @@ func (s *Server) multipartUpload(bucketName string, w http.ResponseWriter, r *ht
 }
 
 func (s *Server) resumableUpload(bucketName string, w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Starting resumable upload")
 	objName := r.URL.Query().Get("name")
 	if objName == "" {
 		metadata, err := loadMetadata(r.Body)
@@ -126,19 +127,22 @@ func (s *Server) resumableUpload(bucketName string, w http.ResponseWriter, r *ht
 		}
 		objName = metadata.Name
 	}
+	fmt.Println("Starting resumable upload. Check point 1")
 	obj := Object{BucketName: bucketName, Name: objName}
 	uploadID, err := generateUploadID()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Starting resumable upload. Check point 2")
 	s.uploads[uploadID] = obj
-	w.Header().Set("Location", s.URL()+"/upload/resumable/"+uploadID)
+	w.Header().Set("Location", "http://localhost:8060/upload/resumable/"+uploadID)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(obj)
 }
 
 func (s *Server) uploadFileContent(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Doing resumable upload. Check point 1")
 	uploadID := mux.Vars(r)["uploadId"]
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -147,11 +151,13 @@ func (s *Server) uploadFileContent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "upload not found", http.StatusNotFound)
 		return
 	}
+	fmt.Println("Doing resumable upload. Check point 2")
 	content, err := loadContent(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	fmt.Println("Doing resumable upload. Check point 3")
 	commit := true
 	status := http.StatusCreated
 	objLength := len(obj.Content)
@@ -164,14 +170,18 @@ func (s *Server) uploadFileContent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	fmt.Printf("Doing resumable upload. Check point 4 %d\n", objLength)
 	if commit {
+		fmt.Println("Doing resumable upload. Check point 4-1")
 		delete(s.uploads, uploadID)
 		s.createObject(obj)
 	} else {
+		fmt.Println("Doing resumable upload. Check point 4-2")
 		status = http.StatusOK
 		w.Header().Set("X-Http-Status-Code-Override", "308")
 		s.uploads[uploadID] = obj
 	}
+	fmt.Println("Doing resumable upload. Check point 5")
 	data, _ := json.Marshal(obj)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))

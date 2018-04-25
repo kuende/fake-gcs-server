@@ -9,6 +9,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"fmt"
+	"io/ioutil"
 )
 
 // CreateBucket creates a bucket inside the server, so any API calls that
@@ -23,6 +25,24 @@ func (s *Server) CreateBucket(name string) {
 	}
 }
 
+func (s *Server) createBucket(w http.ResponseWriter, r *http.Request) {
+	var data2 interface{}
+
+	bytes, _ := ioutil.ReadAll(r.Body)
+	json.Unmarshal(bytes, &data2)
+	fmt.Println(data2)
+	fmt.Println(string(bytes))
+	data := data2.(map[string]interface{})
+	bucketName := data["name"].(string)
+
+	s.CreateBucket(data["name"].(string))
+
+	encoder := json.NewEncoder(w)
+	resp := newBucketResponse(bucketName)
+	w.WriteHeader(http.StatusOK)
+	encoder.Encode(resp)
+}
+
 func (s *Server) listBuckets(w http.ResponseWriter, r *http.Request) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
@@ -32,6 +52,21 @@ func (s *Server) listBuckets(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := newListBucketsResponse(bucketNames)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *Server) deleteBucket(w http.ResponseWriter, r *http.Request){
+	bucketName := mux.Vars(r)["bucketName"]
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	encoder := json.NewEncoder(w)
+	if _, ok := s.buckets[bucketName]; !ok {
+		w.WriteHeader(http.StatusNotFound)
+		err := newErrorResponse(http.StatusNotFound, "Not found", nil)
+		encoder.Encode(err)
+		return
+	}
+	delete(s.buckets, bucketName)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) getBucket(w http.ResponseWriter, r *http.Request) {

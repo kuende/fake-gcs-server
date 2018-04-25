@@ -192,17 +192,23 @@ func (s *Server) rewriteObject(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) downloadObject(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	fmt.Printf("Starting download %s, %s\n", vars["bucketName"], vars["objectName"])
+	fmt.Printf("Starting download Check 1\n", )
 	obj, err := s.GetObject(vars["bucketName"], vars["objectName"])
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
+	fmt.Printf("Starting download Check 1\n", )
 	status := http.StatusOK
 	start, end, content := s.handleRange(obj, r)
+	fmt.Printf("Starting download Check 2\n", )
 	if len(content) != len(obj.Content) {
+		fmt.Printf("Starting download Check 2-5\n", )
 		status = http.StatusPartialContent
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(obj.Content)))
 	}
+	fmt.Printf("Starting download Check 3 %d\n", len(content))
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 	w.WriteHeader(status)
 	w.Write(content)
