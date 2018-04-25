@@ -2,6 +2,7 @@ package fakestorage
 
 import (
 	"sort"
+	"fmt"
 )
 
 type listResponse struct {
@@ -24,8 +25,8 @@ func newListBucketsResponse(bucketNames []string) listResponse {
 
 type bucketResponse struct {
 	Kind string `json:"kind"`
-	ID   string `json:"ID"`
-	Name string `json:"Name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func newBucketResponse(bucketName string) bucketResponse {
@@ -36,14 +37,14 @@ func newBucketResponse(bucketName string) bucketResponse {
 	}
 }
 
-func newListObjectsResponse(objs []Object, prefixes []string) listResponse {
+func newListObjectsResponse(s *Server, objs []Object, prefixes []string) listResponse {
 	resp := listResponse{
 		Kind:     "storage#objects",
 		Items:    make([]interface{}, len(objs)),
 		Prefixes: prefixes,
 	}
 	for i, obj := range objs {
-		resp.Items[i] = newObjectResponse(obj)
+		resp.Items[i] = newObjectResponse(s, obj)
 	}
 	return resp
 }
@@ -56,9 +57,10 @@ type objectResponse struct {
 	Size   int64  `json:"size,string"`
 	// Crc32c: CRC32c checksum, same as in google storage client code
 	Crc32c string `json:"crc32c,omitempty"`
+	MediaLink string `json:"mediaLink,omitempty"`
 }
 
-func newObjectResponse(obj Object) objectResponse {
+func newObjectResponse(s *Server, obj Object) objectResponse {
 	return objectResponse{
 		Kind:   "storage#object",
 		ID:     obj.id(),
@@ -66,6 +68,7 @@ func newObjectResponse(obj Object) objectResponse {
 		Name:   obj.Name,
 		Size:   int64(len(obj.Content)),
 		Crc32c: obj.Crc32c,
+		MediaLink: fmt.Sprintf("http://%s/%s/%s", s.hostname, obj.BucketName, obj.Name),
 	}
 }
 
@@ -78,14 +81,14 @@ type rewriteResponse struct {
 	Resource            objectResponse `json:"resource"`
 }
 
-func newObjectRewriteResponse(obj Object) rewriteResponse {
+func newObjectRewriteResponse(s *Server, obj Object) rewriteResponse {
 	return rewriteResponse{
 		Kind:                "storage#rewriteResponse",
 		TotalBytesRewritten: int64(len(obj.Content)),
 		ObjectSize:          int64(len(obj.Content)),
 		Done:                true,
 		RewriteToken:        "",
-		Resource:            newObjectResponse(obj),
+		Resource:            newObjectResponse(s, obj),
 	}
 }
 
