@@ -2,6 +2,7 @@ package fakestorage
 
 import (
 	"sort"
+	"fmt"
 )
 
 type listResponse struct {
@@ -24,8 +25,8 @@ func newListBucketsResponse(bucketNames []string) listResponse {
 
 type bucketResponse struct {
 	Kind string `json:"kind"`
-	ID   string `json:"ID"`
-	Name string `json:"Name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func newBucketResponse(bucketName string) bucketResponse {
@@ -56,6 +57,7 @@ type objectResponse struct {
 	Size   int64  `json:"size,string"`
 	// Crc32c: CRC32c checksum, same as in google storage client code
 	Crc32c string `json:"crc32c,omitempty"`
+	MediaLink string `json:"mediaLink,omitempty"`
 }
 
 func newObjectResponse(obj Object) objectResponse {
@@ -66,6 +68,7 @@ func newObjectResponse(obj Object) objectResponse {
 		Name:   obj.Name,
 		Size:   int64(len(obj.Content)),
 		Crc32c: obj.Crc32c,
+		MediaLink: fmt.Sprintf("http://localhost:8060/%s/%s", obj.BucketName, obj.Name),
 	}
 }
 
