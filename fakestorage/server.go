@@ -16,6 +16,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/gorilla/mux"
 	"google.golang.org/api/option"
+	"os"
 )
 
 // Server is the fake server.
@@ -28,12 +29,14 @@ type Server struct {
 	ts        *httptest.Server
 	mux       *mux.Router
 	mtx       sync.RWMutex
+	hostname  string
 }
 
 // NewServer creates a new instance of the server, pre-loaded with the given
 // objects.
 func NewServer(objects []Object) *Server {
 	s := newUnstartedServer(objects)
+	s.hostname = os.Getenv("FAKE_GCS_HOSTNAME")
 	s.setTransportToAddr(s.ts.Listener.Addr().String())
 	s.ts.StartTLS()
 	return s
@@ -47,9 +50,10 @@ func NewServerWithHostPort(objects []Object, host string, port uint16) (*Server,
 	if err != nil {
 		return nil, err
 	}
+	s.hostname = os.Getenv("FAKE_GCS_HOSTNAME")
 	s.ts.Listener.Close()
 	s.ts.Listener = l
-	s.ts.StartTLS()
+	s.ts.Start()
 	s.setTransportToAddr(addr)
 	return s, nil
 }
@@ -79,12 +83,15 @@ func (s *Server) buildMuxer() {
 	s.mux.Host("storage.googleapis.com").Path("/{bucketName}/{objectName:.+}").Methods("GET").HandlerFunc(s.downloadObject)
 	r := s.mux.PathPrefix("/storage/v1").Subrouter()
 	r.Path("/b").Methods("GET").HandlerFunc(s.listBuckets)
+	r.Path("/b").Methods("POST").HandlerFunc(s.createBucket)
 	r.Path("/b/{bucketName}").Methods("GET").HandlerFunc(s.getBucket)
+	r.Path("/b/{bucketName}").Methods("DELETE").HandlerFunc(s.deleteBucket)
 	r.Path("/b/{bucketName}/o").Methods("GET").HandlerFunc(s.listObjects)
 	r.Path("/b/{bucketName}/o").Methods("POST").HandlerFunc(s.insertObject)
 	r.Path("/b/{bucketName}/o/{objectName:.+}").Methods("GET").HandlerFunc(s.getObject)
 	r.Path("/b/{bucketName}/o/{objectName:.+}").Methods("DELETE").HandlerFunc(s.deleteObject)
 	r.Path("/b/{sourceBucket}/o/{sourceObject:.+}/rewriteTo/b/{destinationBucket}/o/{destinationObject:.+}").HandlerFunc(s.rewriteObject)
+	s.mux.Path("/{bucketName}/{objectName:.+}").Methods("GET").HandlerFunc(s.downloadObject)
 	s.mux.Path("/upload/storage/v1/b/{bucketName}/o").Methods("POST").HandlerFunc(s.insertObject)
 	s.mux.Path("/upload/resumable/{uploadId}").Methods("PUT", "POST").HandlerFunc(s.uploadFileContent)
 }

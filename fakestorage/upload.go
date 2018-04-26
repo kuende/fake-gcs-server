@@ -32,7 +32,7 @@ func (s *Server) insertObject(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 	if _, ok := s.buckets[bucketName]; !ok {
 		w.WriteHeader(http.StatusNotFound)
-		err := newErrorResponse(http.StatusNotFound, "Not found", nil)
+		err := newErrorResponse(http.StatusNotFound, fmt.Sprintf("Not found %s", bucketName), nil)
 		json.NewEncoder(w).Encode(err)
 		return
 	}
@@ -133,7 +133,7 @@ func (s *Server) resumableUpload(bucketName string, w http.ResponseWriter, r *ht
 		return
 	}
 	s.uploads[uploadID] = obj
-	w.Header().Set("Location", s.URL()+"/upload/resumable/"+uploadID)
+	w.Header().Set("Location", fmt.Sprintf("http://%s/upload/resumable/%s", s.hostname, uploadID))
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(obj)
 }

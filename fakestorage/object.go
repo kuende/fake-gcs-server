@@ -136,7 +136,7 @@ func (s *Server) listObjects(w http.ResponseWriter, r *http.Request) {
 		encoder.Encode(errResp)
 		return
 	}
-	encoder.Encode(newListObjectsResponse(objs, prefixes))
+	encoder.Encode(newListObjectsResponse(s, objs, prefixes))
 }
 
 func (s *Server) getObject(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +150,7 @@ func (s *Server) getObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Accept-Ranges", "bytes")
-	encoder.Encode(newObjectResponse(obj))
+	encoder.Encode(newObjectResponse(s, obj))
 }
 
 func (s *Server) deleteObject(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +187,7 @@ func (s *Server) rewriteObject(w http.ResponseWriter, r *http.Request) {
 	}
 	s.CreateObject(newObject)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(newObjectRewriteResponse(newObject))
+	json.NewEncoder(w).Encode(newObjectRewriteResponse(s, newObject))
 }
 
 func (s *Server) downloadObject(w http.ResponseWriter, r *http.Request) {
