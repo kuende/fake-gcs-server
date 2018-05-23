@@ -211,7 +211,7 @@ func parseRange(r string, objLength, bodyLength int, w http.ResponseWriter) (fin
 	}
 
 	contentLength = objLength + bodyLength
-	finished = rangeEnd == contentLength
+	finished = rangeEnd == contentLength - 1
 	w.Header().Set("Range", fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd))
 
 	return finished, nil
